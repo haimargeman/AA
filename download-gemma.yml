@@ -1,0 +1,70 @@
+
+name: Download Gemma 4 E2B
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Download official Google model
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p models
+
+          python -m pip install --upgrade huggingface_hub
+
+          hf download \
+            google/gemma-4-E2B-it-qat-q4_0-gguf \
+            gemma-4-E2B_q4_0-it.gguf \
+            gemma-4-E2B-it-mmproj.gguf \
+            --local-dir models
+
+      - name: Split model and create checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cd models
+
+          sha256sum \
+            gemma-4-E2B_q4_0-it.gguf \
+            gemma-4-E2B-it-mmproj.gguf \
+            > SHA256SUMS
+
+          split -b 1500M -d -a 2 \
+            gemma-4-E2B_q4_0-it.gguf \
+            gemma-4-E2B_q4_0-it.gguf.part-
+
+          rm gemma-4-E2B_q4_0-it.gguf
+
+          ls -lh
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          TAG="gemma4-e2b-qat-download"
+
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --title "Gemma 4 E2B QAT GGUF" \
+              --notes "Official Google Gemma 4 E2B model files."
+          fi
+
+          gh release upload "$TAG" \
+            models/*.part-* \
+            models/gemma-4-E2B-it-mmproj.gguf \
+            models/SHA256SUMS \
+            --clobber
