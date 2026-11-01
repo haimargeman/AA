@@ -12,8 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
-    steps:
-      - name: Download official Google model
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
+
+  - name: Download official Google model
         shell: bash
         run: |
           set -euo pipefail
